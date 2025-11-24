@@ -1,0 +1,59 @@
+name: Aawiz NextJS
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: '20.x'
+                  # cache: 'yarn'
+
+            # - name: Install dependencies
+            #   run: npm install
+
+            # - name: Build and test
+            #   run: |
+            #     npm run build
+
+            - name: Set up SSH key
+              uses: webfactory/ssh-agent@v0.5.0
+              with:
+                  ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+            - name: Deploy code
+              uses: easingthemes/ssh-deploy@v2.2.5
+              with:
+                  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                  EXCLUDE: '/node_modules/, /public/hot/, /public/storage/, /storage/*.key/, /vendor/, .env/, .env.backup/, .phpunit.result.cache/, docker-compose.override.yml/, Homestead.json/, Homestead.yaml/, npm-debug.log/, yarn-error.log/, /.idea/, /.vscode/, /.idea/*.*/, /.idea/*/, /public/js/, /public/fonts/, /public/*.svg/, composer.lock/, /.git/, /.github/, .editorconfig, .gitattributes, .gitignore, .styleci.yml, .compose.lock, README.md'
+                  TARGET: ${{ secrets.REMOTE_TARGET }}
+                  REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+                  REMOTE_USER: ${{ secrets.REMOTE_USER }}
+                  REMOTE_PORT: ${{ secrets.REMOTE_PORT }}
+                  # SOURCE: /dist/
+
+            - name: Run Pm2
+              run: |
+                  ssh -p ${{ secrets.REMOTE_PORT }} ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }} "
+                    cd ${{ secrets.REMOTE_TARGET }}
+                    # cp .env.example .env
+                    pm2 delete aawiz-nextjs
+                    node -v
+                    npm -v
+                    rm -rf .next
+                    nvm use v20.11.1
+                    npm i
+                    npm i next
+                    npm run build
+                    pm2 start ecosystem.config.js
+                  "
